@@ -52,19 +52,19 @@ function renderOverview(data) {
           <article class="info-tile">
             <span class="section-eyebrow">KPI 01</span>
             <h3>Luồng đăng nhập đã cố định</h3>
-            <p>Tất cả admin đi qua `/` và khi hợp lệ sẽ chuyển sang `/dashboard/`.</p>
+            <p>Tất cả admin đi qua <code>/</code> và khi hợp lệ sẽ chuyển sang <code>/dashboard/</code>.</p>
           </article>
 
           <article class="info-tile">
             <span class="section-eyebrow">KPI 02</span>
             <h3>Dữ liệu chỉ render khi token hợp lệ</h3>
-            <p>Mỗi lần vào dashboard, token đều được xác thực lại qua API `session`.</p>
+            <p>Mỗi lần vào dashboard, token đều được xác thực lại qua API <code>session</code>.</p>
           </article>
 
           <article class="info-tile">
             <span class="section-eyebrow">KPI 03</span>
             <h3>Students là nguồn chung cho report</h3>
-            <p>Biểu đồ năm và bảng học viên cùng dùng dữ liệu gốc từ sheet `Students`.</p>
+            <p>Biểu đồ năm và bảng học viên cùng dùng dữ liệu gốc từ sheet <code>Students</code>.</p>
           </article>
         </div>
       </article>
