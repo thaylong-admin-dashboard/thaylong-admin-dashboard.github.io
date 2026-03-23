@@ -13,53 +13,85 @@ import { getStoredSession } from "../modules/storage.js";
 
 const layout = mountDashboardLayout({
   activeNav: "students",
-  pageTitle: "Danh sách học viên",
-  pageSubtitle: "Theo dõi đầy đủ học viên, khóa học, trạng thái học và tình trạng học phí.",
+  pageTitle: "Danh sach hoc vien",
+  pageSubtitle: "Tra cuu thong tin hoc vien, hoc phi, DAT va ket qua dao tao.",
   actions: [
     {
-      label: "Về dashboard",
+      label: "Ve dashboard",
       href: appUrl("/dashboard/"),
       variant: "secondary"
-    },
-    {
-      label: "Xem report",
-      href: appUrl("/dashboard/report/"),
-      variant: "primary"
     }
   ],
   admin: getStoredSession() || {},
   onLogout: logout
 });
 
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("đ", "d")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function getUniqueOptions(students, field) {
+  return [...new Set(students.map((student) => student[field]).filter(Boolean))].sort((left, right) =>
+    String(left).localeCompare(String(right), "vi")
+  );
+}
+
 function renderStudentsView(data, students) {
+  const statusOptions = getUniqueOptions(students, "status");
+  const licenseOptions = getUniqueOptions(students, "licenseClass");
+
   return `
     ${renderStatsGrid(data.summary)}
 
     <section class="section-card section-card--table">
       <div class="section-heading">
         <div>
-          <span class="section-eyebrow">Danh sách</span>
-          <h2>Toàn bộ học viên</h2>
+          <span class="section-eyebrow">Danh sach hoc vien</span>
+          <h2>Ho so chi tiet</h2>
           <p class="section-text">
-            Tìm theo mã học viên, tên, khóa học hoặc hạng xe. Cập nhật ${formatDateTime(
-              data.generatedAt
-            )}.
+            Cap nhat ${formatDateTime(data.generatedAt)}. Loc theo ten, so dien thoai, trang thai,
+            hang hoc va tien do hoc phi.
           </p>
-        </div>
-
-        <div class="table-tools">
-          <input
-            class="search-input"
-            type="search"
-            placeholder="Tìm theo mã, tên, khóa học..."
-            data-student-search
-          />
         </div>
       </div>
 
+      <div class="filter-grid">
+        <input
+          class="search-input search-input--wide"
+          type="search"
+          placeholder="Tim theo ma hoc vien, ho ten, so dien thoai, ghi chu..."
+          data-student-search
+        />
+
+        <select data-status-filter>
+          <option value="">Tat ca trang thai</option>
+          ${statusOptions
+            .map((status) => `<option value="${status}">${status}</option>`)
+            .join("")}
+        </select>
+
+        <select data-license-filter>
+          <option value="">Tat ca hang hoc</option>
+          ${licenseOptions
+            .map((licenseClass) => `<option value="${licenseClass}">${licenseClass}</option>`)
+            .join("")}
+        </select>
+
+        <select data-debt-filter>
+          <option value="">Tat ca hoc phi</option>
+          <option value="debt">Con thieu</option>
+          <option value="paid">Da du</option>
+        </select>
+      </div>
+
       <div class="table-meta">
-        <span data-result-count>${students.length} học viên</span>
-        <span>Dữ liệu lấy trực tiếp từ Google Sheets</span>
+        <span data-result-count>${students.length} hoc vien</span>
+        <span>Du lieu lay tu sheet Students</span>
       </div>
 
       <div data-table-region>${renderStudentTable(students)}</div>
@@ -67,36 +99,60 @@ function renderStudentsView(data, students) {
   `;
 }
 
-function filterStudents(students, keyword) {
-  if (!keyword) {
-    return students;
-  }
+function filterStudents(students, filters) {
+  const keyword = normalizeText(filters.keyword);
+  const status = normalizeText(filters.status);
+  const licenseClass = normalizeText(filters.licenseClass);
+  const debt = filters.debt;
 
-  const normalizedKeyword = keyword.toLowerCase();
+  return students.filter((student) => {
+    const keywordMatches =
+      !keyword ||
+      [
+        student.studentId,
+        student.fullName,
+        student.phone,
+        student.notes,
+        student.datVehicle
+      ]
+        .map(normalizeText)
+        .join(" ")
+        .includes(keyword);
 
-  return students.filter((student) =>
-    [
-      student.studentId,
-      student.fullName,
-      student.courseName,
-      student.licenseClass
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(normalizedKeyword)
-  );
+    const statusMatches = !status || normalizeText(student.status) === status;
+    const licenseMatches = !licenseClass || normalizeText(student.licenseClass) === licenseClass;
+    const debtMatches =
+      !debt ||
+      (debt === "debt" ? Number(student.tuitionDue || 0) > 0 : Number(student.tuitionDue || 0) <= 0);
+
+    return keywordMatches && statusMatches && licenseMatches && debtMatches;
+  });
 }
 
-function bindSearch(students) {
+function bindFilters(students) {
   const searchInput = layout.content.querySelector("[data-student-search]");
+  const statusFilter = layout.content.querySelector("[data-status-filter]");
+  const licenseFilter = layout.content.querySelector("[data-license-filter]");
+  const debtFilter = layout.content.querySelector("[data-debt-filter]");
   const tableRegion = layout.content.querySelector("[data-table-region]");
   const resultCount = layout.content.querySelector("[data-result-count]");
 
-  searchInput?.addEventListener("input", (event) => {
-    const filteredStudents = filterStudents(students, event.target.value.trim());
-    resultCount.textContent = `${filteredStudents.length} học viên`;
+  function applyFilters() {
+    const filteredStudents = filterStudents(students, {
+      keyword: searchInput?.value || "",
+      status: statusFilter?.value || "",
+      licenseClass: licenseFilter?.value || "",
+      debt: debtFilter?.value || ""
+    });
+
+    resultCount.textContent = `${filteredStudents.length} hoc vien`;
     tableRegion.innerHTML = renderStudentTable(filteredStudents);
-  });
+  }
+
+  searchInput?.addEventListener("input", applyFilters);
+  statusFilter?.addEventListener("change", applyFilters);
+  licenseFilter?.addEventListener("change", applyFilters);
+  debtFilter?.addEventListener("change", applyFilters);
 }
 
 async function init() {
@@ -111,7 +167,7 @@ async function init() {
 
     const data = await api.getStudents(session.token);
     layout.content.innerHTML = renderStudentsView(data, data.students);
-    bindSearch(data.students);
+    bindFilters(data.students);
   } catch (error) {
     layout.content.innerHTML = renderErrorState(error.message);
   }

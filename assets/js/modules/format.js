@@ -14,6 +14,11 @@ export const MONTH_LABELS = [
 ];
 
 const numberFormatter = new Intl.NumberFormat("vi-VN");
+const currencyFormatter = new Intl.NumberFormat("vi-VN", {
+  style: "currency",
+  currency: "VND",
+  maximumFractionDigits: 0
+});
 
 const dateFormatter = new Intl.DateTimeFormat("vi-VN", {
   day: "2-digit",
@@ -31,6 +36,10 @@ const dateTimeFormatter = new Intl.DateTimeFormat("vi-VN", {
 
 export function formatNumber(value) {
   return numberFormatter.format(Number(value || 0));
+}
+
+export function formatCurrency(value) {
+  return currencyFormatter.format(Number(value || 0));
 }
 
 export function formatDate(value) {

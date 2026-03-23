@@ -17,7 +17,7 @@ async function bootstrap() {
       redirectToDashboard();
     }
   } catch (error) {
-    setFeedback("Phiên cũ không còn hợp lệ. Vui lòng đăng nhập lại.", "info");
+    setFeedback("Phien dang nhap da het han. Vui long dang nhap lai.", "info");
   }
 }
 
@@ -29,16 +29,16 @@ form.addEventListener("submit", async (event) => {
   const password = String(formData.get("password") || "").trim();
 
   if (!username || !password) {
-    setFeedback("Vui lòng nhập đầy đủ tài khoản và mật khẩu.", "error");
+    setFeedback("Vui long nhap day du tai khoan va mat khau.", "error");
     return;
   }
 
   button.disabled = true;
-  setFeedback("Đang xác thực tài khoản...", "info");
+  setFeedback("Dang xac thuc tai khoan...", "info");
 
   try {
     await loginAndStore(username, password);
-    setFeedback("Đăng nhập thành công, đang chuyển hướng...", "success");
+    setFeedback("Dang nhap thanh cong, dang chuyen huong...", "success");
     redirectToDashboard();
   } catch (error) {
     setFeedback(error.message, "error");

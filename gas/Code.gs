@@ -46,7 +46,7 @@ function doPost(e) {
 
 function handleLogin_(params) {
   var username = normalizeText_(params.username);
-  var password = String(params.password || "").trim();
+  var password = cleanString_(params.password);
 
   if (!username || !password) {
     throw new Error("Vui lòng nhập tài khoản và mật khẩu");
@@ -55,7 +55,7 @@ function handleLogin_(params) {
   var admin = getAdmins_().find(function (item) {
     return (
       normalizeText_(item.username) === username &&
-      String(item.password || "").trim() === password &&
+      cleanString_(item.password) === password &&
       normalizeBoolean_(item.is_active, true)
     );
   });
@@ -72,7 +72,7 @@ function handleLogin_(params) {
   saveSession_(token, {
     username: admin.username,
     fullName: admin.full_name,
-    role: admin.role || "Quản trị viên",
+    role: admin.role || "Quản lý trung tâm",
     expiresAt: expiresAt
   });
 
@@ -82,7 +82,7 @@ function handleLogin_(params) {
     admin: {
       username: admin.username,
       fullName: admin.full_name,
-      role: admin.role || "Quản trị viên"
+      role: admin.role || "Quản lý trung tâm"
     }
   };
 }
@@ -104,14 +104,11 @@ function handleSession_(params) {
 function handleStats_(params) {
   requireSession_(params.token);
 
-  var students = getStudents_();
-  var sortedStudents = students.slice().sort(function (left, right) {
-    return parseDateValue_(right.registerDate) - parseDateValue_(left.registerDate);
-  });
+  var students = sortStudentsByRegisterDate_(getStudents_());
 
   return {
     summary: buildSummary_(students),
-    recentStudents: sortedStudents.slice(0, 6),
+    recentStudents: students.slice(0, 6),
     generatedAt: new Date().toISOString()
   };
 }
@@ -119,9 +116,7 @@ function handleStats_(params) {
 function handleStudents_(params) {
   requireSession_(params.token);
 
-  var students = getStudents_().slice().sort(function (left, right) {
-    return parseDateValue_(right.registerDate) - parseDateValue_(left.registerDate);
-  });
+  var students = sortStudentsByRegisterDate_(getStudents_());
 
   return {
     summary: buildSummary_(students),
@@ -133,7 +128,7 @@ function handleStudents_(params) {
 function handleReport_(params) {
   requireSession_(params.token);
 
-  var students = getStudents_();
+  var students = sortStudentsByRegisterDate_(getStudents_());
   var availableYears = getAvailableYears_(students);
   var requestedYear = Number(params.year || availableYears[0] || new Date().getFullYear());
   var selectedYear =
@@ -149,23 +144,43 @@ function handleReport_(params) {
 }
 
 function getAdmins_() {
-  return getSheetObjects_(ADMIN_SHEET_NAME);
+  return getSheetObjects_(ADMIN_SHEET_NAME).map(function (row) {
+    return {
+      admin_id: cleanString_(row.admin_id),
+      username: cleanString_(row.username),
+      password: cleanString_(row.password),
+      full_name: cleanString_(row.full_name),
+      role: cleanString_(row.role),
+      is_active: row.is_active
+    };
+  });
 }
 
 function getStudents_() {
-  return getSheetObjects_(STUDENT_SHEET_NAME).map(function (row) {
-    return {
-      studentId: row.student_id || "",
-      fullName: row.full_name || "",
-      courseName: row.course_name || "",
-      licenseClass: row.license_class || "",
-      learningStatus: row.learning_status || "",
-      feeStatus: row.fee_status || "",
-      registerDate: formatDateForClient_(row.register_date),
-      phone: row.phone || "",
-      note: row.note || ""
-    };
-  });
+  return getSheetObjects_(STUDENT_SHEET_NAME)
+    .map(function (row) {
+      return {
+        studentId: cleanString_(row.student_id),
+        fullName: cleanString_(row.ho_ten),
+        birthDate: formatDateForClient_(row.ngay_sinh),
+        phone: cleanString_(row.sdt),
+        licenseClass: cleanString_(row.hang_hoc),
+        sessionType: cleanString_(row.loai_buoi),
+        status: cleanString_(row.trang_thai),
+        datVehicle: cleanString_(row["DAT_xe"]),
+        registerDate: formatDateForClient_(row.ngay_dang_ky),
+        datKm: parseNumber_(row["km_DAT"]),
+        tuitionTotal: parseCurrency_(row.hoc_phi),
+        tuitionPaid: parseCurrency_(row.da_dong),
+        tuitionDue: parseCurrency_(row.con_thieu),
+        notes: cleanString_(row.ghi_chu),
+        examResult: cleanString_(row.ket_qua_thi),
+        completedDate: formatDateForClient_(row.ngay_hoan_thanh)
+      };
+    })
+    .filter(function (student) {
+      return student.studentId || student.fullName;
+    });
 }
 
 function buildSummary_(students) {
@@ -176,18 +191,28 @@ function buildSummary_(students) {
   return students.reduce(
     function (summary, student) {
       var registerDate = parseDateValue_(student.registerDate);
-      var learningStatus = normalizeText_(student.learningStatus);
-      var feeStatus = normalizeText_(student.feeStatus);
+      var status = normalizeText_(student.status);
+      var completedDate = parseDateValue_(student.completedDate);
 
-      if (learningStatus === "dang hoc") {
+      summary.totalStudents += 1;
+      summary.totalTuitionAmount += student.tuitionTotal;
+      summary.totalCollectedAmount += student.tuitionPaid;
+      summary.totalOutstandingAmount += student.tuitionDue;
+      summary.totalDatKm += student.datKm;
+
+      if (status === "dang hoc") {
         summary.activeLearning += 1;
       }
 
-      if (learningStatus === "cho thi") {
+      if (status === "cho thi") {
         summary.waitingExam += 1;
       }
 
-      if (feeStatus.indexOf("no") > -1) {
+      if (status === "hoan thanh" || completedDate) {
+        summary.completedStudents += 1;
+      }
+
+      if (student.tuitionDue > 0) {
         summary.feeDebt += 1;
       }
 
@@ -202,10 +227,16 @@ function buildSummary_(students) {
       return summary;
     },
     {
+      totalStudents: 0,
       activeLearning: 0,
       waitingExam: 0,
+      completedStudents: 0,
       feeDebt: 0,
-      newThisMonth: 0
+      newThisMonth: 0,
+      totalTuitionAmount: 0,
+      totalCollectedAmount: 0,
+      totalOutstandingAmount: 0,
+      totalDatKm: 0
     }
   );
 }
@@ -246,6 +277,12 @@ function getAvailableYears_(students) {
     .sort(function (left, right) {
       return right - left;
     });
+}
+
+function sortStudentsByRegisterDate_(students) {
+  return students.slice().sort(function (left, right) {
+    return parseDateValue_(right.registerDate) - parseDateValue_(left.registerDate);
+  });
 }
 
 function requireSession_(token) {
@@ -313,7 +350,7 @@ function getSheetObjects_(sheetName) {
   }
 
   var headers = values[0].map(function (header) {
-    return String(header || "").trim();
+    return cleanString_(header);
   });
 
   return values.slice(1).filter(hasRowData_).map(function (row) {
@@ -329,7 +366,7 @@ function getSheetObjects_(sheetName) {
 
 function hasRowData_(row) {
   return row.some(function (cell) {
-    return String(cell || "").trim() !== "";
+    return cleanString_(cell) !== "";
   });
 }
 
@@ -342,7 +379,33 @@ function parseDateValue_(value) {
     return value;
   }
 
-  var parsed = new Date(value);
+  var text = cleanString_(value);
+
+  if (!text) {
+    return null;
+  }
+
+  var ddmmyyyyMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (ddmmyyyyMatch) {
+    return new Date(
+      Number(ddmmyyyyMatch[3]),
+      Number(ddmmyyyyMatch[2]) - 1,
+      Number(ddmmyyyyMatch[1])
+    );
+  }
+
+  var yyyymmddMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+  if (yyyymmddMatch) {
+    return new Date(
+      Number(yyyymmddMatch[1]),
+      Number(yyyymmddMatch[2]) - 1,
+      Number(yyyymmddMatch[3])
+    );
+  }
+
+  var parsed = new Date(text);
   return isNaN(parsed.getTime()) ? null : parsed;
 }
 
@@ -356,6 +419,16 @@ function formatDateForClient_(value) {
   return Utilities.formatDate(date, APP_TIMEZONE, "yyyy-MM-dd");
 }
 
+function parseCurrency_(value) {
+  var digits = cleanString_(value).replace(/[^\d-]/g, "");
+  return digits ? Number(digits) : 0;
+}
+
+function parseNumber_(value) {
+  var digits = cleanString_(value).replace(/[^\d.-]/g, "");
+  return digits ? Number(digits) : 0;
+}
+
 function normalizeBoolean_(value, fallbackValue) {
   if (value === "" || value === null || value === undefined) {
     return fallbackValue;
@@ -365,20 +438,23 @@ function normalizeBoolean_(value, fallbackValue) {
     return value;
   }
 
-  return String(value).toLowerCase() === "true";
+  return cleanString_(value).toLowerCase() === "true";
 }
 
 function normalizeText_(value) {
-  return String(value || "")
-    .trim()
+  return cleanString_(value)
     .toLowerCase()
     .replace(/đ/g, "d")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function cleanString_(value) {
+  return String(value || "").trim();
+}
+
 function getAction_(e) {
-  return String((e.parameter && e.parameter.action) || "").trim();
+  return cleanString_((e.parameter && e.parameter.action) || "");
 }
 
 function jsonSuccess_(data) {

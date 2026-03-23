@@ -1,5 +1,5 @@
 import { appUrl } from "./env.js";
-import { formatDate, formatNumber, getInitials } from "./format.js";
+import { formatCurrency, formatDate, formatNumber, getInitials } from "./format.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -19,34 +19,35 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function getLearningTone(value) {
+function getStatusTone(value) {
   const normalized = normalizeText(value);
 
-  if (normalized.includes("dang hoc")) {
-    return "info";
+  if (normalized.includes("hoan thanh")) {
+    return "success";
   }
 
   if (normalized.includes("cho thi")) {
     return "warning";
   }
 
-  if (normalized.includes("hoan thanh")) {
-    return "success";
+  if (normalized.includes("dang hoc") || normalized.includes("moi dang ky")) {
+    return "info";
   }
 
   return "danger";
 }
 
-function getFeeTone(value) {
-  return normalizeText(value).includes("no") ? "danger" : "success";
+function getDebtTone(value) {
+  return Number(value || 0) > 0 ? "danger" : "success";
 }
 
 function renderStatusBadge(label, tone) {
-  return `<span class="status-badge status-badge--${tone}">${escapeHtml(label)}</span>`;
+  return `<span class="status-badge status-badge--${tone}">${escapeHtml(label || "--")}</span>`;
 }
 
 function renderNavLink(item, activeNav) {
   const isActive = item.id === activeNav;
+
   return `
     <a class="sidebar__nav-link ${isActive ? "is-active" : ""}" href="${item.href}">
       <span class="sidebar__icon">${item.icon}</span>
@@ -57,6 +58,7 @@ function renderNavLink(item, activeNav) {
 
 function renderTopAction(action) {
   const variantClass = action.variant === "secondary" ? "button-secondary" : "button-primary";
+
   return `
     <a class="button ${variantClass} button-small" href="${action.href}">
       ${escapeHtml(action.label)}
@@ -68,23 +70,29 @@ function navItems() {
   return [
     {
       id: "overview",
-      icon: "OV",
-      label: "Tổng quan",
+      icon: "DB",
+      label: "Dashboard",
       href: appUrl("/dashboard/")
     },
     {
       id: "students",
       icon: "HV",
-      label: "Học viên",
+      label: "Hoc vien",
       href: appUrl("/dashboard/students/")
-    },
-    {
-      id: "report",
-      icon: "RP",
-      label: "Report",
-      href: appUrl("/dashboard/report/")
     }
   ];
+}
+
+function renderMoneyStack(student) {
+  return `
+    <div class="money-stack">
+      <strong>${formatCurrency(student.tuitionTotal)}</strong>
+      <span>Da dong ${formatCurrency(student.tuitionPaid)}</span>
+      <span class="${student.tuitionDue > 0 ? "text-danger" : "text-success"}">
+        Con thieu ${formatCurrency(student.tuitionDue)}
+      </span>
+    </div>
+  `;
 }
 
 export function mountDashboardLayout({
@@ -105,13 +113,13 @@ export function mountDashboardLayout({
         <a class="sidebar__brand" href="${appUrl("/dashboard/")}">
           <span class="sidebar__brand-badge">TL</span>
           <span>
-            <strong>ThayLong Admin</strong>
-            <small>Driving Center Panel</small>
+            <strong>ThayLong</strong>
+            <small>Quan ly trung tam day lai</small>
           </span>
         </a>
 
         <div>
-          <p class="sidebar__caption">Điều hướng chính</p>
+          <p class="sidebar__caption">Dieu huong</p>
           <nav class="sidebar__nav">
             ${navItems()
               .map((item) => renderNavLink(item, activeNav))
@@ -131,13 +139,13 @@ export function mountDashboardLayout({
                 admin.fullName || "Admin"
               )}</p>
               <p class="admin-panel__role" data-admin-role>${escapeHtml(
-                admin.role || "Quản trị viên"
+                admin.role || "Quan ly trung tam"
               )}</p>
             </div>
           </div>
 
           <button class="button button-secondary button-block button-small" type="button" data-logout>
-            Đăng xuất
+            Dang xuat
           </button>
         </section>
       </aside>
@@ -164,8 +172,8 @@ export function mountDashboardLayout({
           <section class="section-card">
             <div class="empty-state">
               <div>
-                <h3>Đang tải dữ liệu</h3>
-                <p>Dashboard đang xác thực token và lấy dữ liệu từ Google Apps Script.</p>
+                <h3>Dang tai du lieu</h3>
+                <p>He thong dang lay du lieu hoc vien va hoc phi.</p>
               </div>
             </div>
           </section>
@@ -205,31 +213,31 @@ export function updateAdminPanel(layoutRefs, admin) {
   }
 
   layoutRefs.adminName.textContent = admin.fullName || "Admin";
-  layoutRefs.adminRole.textContent = admin.role || "Quản trị viên";
+  layoutRefs.adminRole.textContent = admin.role || "Quan ly trung tam";
   layoutRefs.adminAvatar.textContent = getInitials(admin.fullName);
 }
 
 export function renderStatsGrid(summary = {}) {
   const items = [
     {
-      label: "Học viên đang học",
+      label: "Tong hoc vien",
+      value: summary.totalStudents,
+      hint: "Tong so ho so dang duoc quan ly"
+    },
+    {
+      label: "Dang hoc",
       value: summary.activeLearning,
-      hint: "Số học viên đang theo lịch học hiện tại"
+      hint: "Hoc vien dang theo tien do dao tao"
     },
     {
-      label: "Học viên đang chờ thi",
+      label: "Cho thi",
       value: summary.waitingExam,
-      hint: "Nhóm học viên sẵn sàng cho lịch thi"
+      hint: "Hoc vien da san sang thi sat hach"
     },
     {
-      label: "Học viên nợ học phí",
+      label: "Con hoc phi",
       value: summary.feeDebt,
-      hint: "Danh sách cần theo dõi thanh toán"
-    },
-    {
-      label: "Học viên mới tháng này",
-      value: summary.newThisMonth,
-      hint: "Số đăng ký mới trong tháng hiện tại"
+      hint: "So hoc vien con cong no hoc phi"
     }
   ];
 
@@ -257,18 +265,38 @@ export function renderStudentTable(students = []) {
         <tr>
           <td>${escapeHtml(student.studentId)}</td>
           <td>
-            <div class="student-name">${escapeHtml(student.fullName)}</div>
-            <div class="student-phone">${escapeHtml(student.phone || "--")}</div>
-          </td>
-          <td>
-            <div class="student-course">
-              <strong>${escapeHtml(student.courseName)}</strong>
-              <small>${escapeHtml(student.licenseClass)}</small>
+            <div class="student-meta">
+              <strong class="student-name">${escapeHtml(student.fullName || "--")}</strong>
+              <span class="student-subtext">${escapeHtml(student.phone || "--")}</span>
+              <span class="student-subtext">Ngay sinh ${escapeHtml(
+                formatDate(student.birthDate)
+              )}</span>
             </div>
           </td>
-          <td>${renderStatusBadge(student.learningStatus, getLearningTone(student.learningStatus))}</td>
-          <td>${renderStatusBadge(student.feeStatus, getFeeTone(student.feeStatus))}</td>
-          <td>${formatDate(student.registerDate)}</td>
+          <td>
+            <div class="student-meta">
+              <strong>${escapeHtml(student.licenseClass || "--")}</strong>
+              <span class="student-subtext">${escapeHtml(student.sessionType || "--")}</span>
+            </div>
+          </td>
+          <td>${renderStatusBadge(student.status, getStatusTone(student.status))}</td>
+          <td>
+            <div class="student-meta">
+              <strong>${escapeHtml(student.datVehicle || "--")}</strong>
+              <span class="student-subtext">${formatNumber(student.datKm)} km DAT</span>
+            </div>
+          </td>
+          <td>${renderMoneyStack(student)}</td>
+          <td>${renderStatusBadge(
+            Number(student.tuitionDue) > 0 ? "Con thieu" : "Da du",
+            getDebtTone(student.tuitionDue)
+          )}</td>
+          <td>
+            <div class="student-meta">
+              <strong>${formatDate(student.registerDate)}</strong>
+              <span class="student-subtext">${escapeHtml(student.examResult || "--")}</span>
+            </div>
+          </td>
         </tr>
       `
     )
@@ -278,8 +306,8 @@ export function renderStudentTable(students = []) {
     return `
       <div class="empty-state">
         <div>
-          <h3>Chưa có học viên</h3>
-          <p>Sheet Students hiện chưa có dữ liệu để hiển thị.</p>
+          <h3>Chua co hoc vien</h3>
+          <p>Sheet Students hien chua co du lieu de hien thi.</p>
         </div>
       </div>
     `;
@@ -287,15 +315,17 @@ export function renderStudentTable(students = []) {
 
   return `
     <div class="table-wrap">
-      <table class="data-table">
+      <table class="data-table data-table--students">
         <thead>
           <tr>
-            <th>Mã học viên</th>
-            <th>Họ tên</th>
-            <th>Khóa học / hạng xe</th>
-            <th>Trạng thái học</th>
-            <th>Học phí</th>
-            <th>Ngày đăng ký</th>
+            <th>Ma HV</th>
+            <th>Hoc vien</th>
+            <th>Hang hoc / Buoi</th>
+            <th>Trang thai</th>
+            <th>Xe DAT / Km</th>
+            <th>Hoc phi</th>
+            <th>Thanh toan</th>
+            <th>Dang ky / Ket qua</th>
           </tr>
         </thead>
         <tbody>
@@ -320,5 +350,5 @@ export function renderEmptyState(title, description) {
 }
 
 export function renderErrorState(message) {
-  return renderEmptyState("Không tải được dữ liệu", message);
+  return renderEmptyState("Khong tai duoc du lieu", message);
 }

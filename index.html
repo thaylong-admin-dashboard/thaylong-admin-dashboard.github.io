@@ -14,91 +14,91 @@
     <link rel="stylesheet" href="/assets/css/auth.css" />
   </head>
   <body class="auth-body">
-    <header class="site-header">
-      <a class="brand-mark" href="/">
-        <span class="brand-mark__badge">TL</span>
-        <span>
-          <strong>ThayLong</strong>
-          <small>Admin Dashboard</small>
-        </span>
-      </a>
-      <a class="button button-ghost" href="#admin-login">Đăng nhập admin</a>
-    </header>
+    <main class="auth-shell">
+      <section class="auth-hero">
+        <div class="auth-hero__header">
+          <a class="brand-mark" href="/">
+            <span class="brand-mark__badge">TL</span>
+            <span>
+              <strong>ThayLong</strong>
+              <small>He thong quan ly dao tao</small>
+            </span>
+          </a>
+          <span class="auth-pill">Noi bo</span>
+        </div>
 
-    <main class="auth-layout">
-      <section class="public-panel">
-        <div class="public-panel__copy">
-          <p class="eyebrow">GitHub Pages + Google Sheets + Apps Script</p>
-          <h1>Trang quản trị gọn, rõ và chạy hoàn toàn bằng static hosting.</h1>
+        <div class="auth-hero__body">
+          <p class="eyebrow">Trung tam day lai Thay Long</p>
+          <h1>Dang nhap de theo doi hoc vien, hoc phi va tien do dao tao.</h1>
           <p class="lead">
-            Mẫu này dành cho trung tâm dạy lái: đăng nhập admin, xem KPI học viên, tra
-            danh sách và report theo năm mà không cần server runtime riêng.
+            Giao dien danh cho quan ly trung tam. Tat ca thong tin can xem duoc tap trung tai
+            dashboard sau khi dang nhap.
           </p>
         </div>
 
-        <div class="feature-stack">
-          <article class="feature-card">
-            <span class="feature-card__tag">Shell admin</span>
-            <h2>Sidebar cố định và topbar hành động rõ ràng</h2>
-            <p>Thiết kế theo kiểu business dashboard, ưu tiên dễ đọc và dễ mở rộng.</p>
+        <div class="auth-capability-grid">
+          <article class="auth-capability-card">
+            <span class="auth-capability-card__index">01</span>
+            <h2>Hoc vien</h2>
+            <p>Tra cuu nhanh thong tin hoc vien, hang hoc, trang thai va ket qua.</p>
           </article>
 
-          <article class="feature-card">
-            <span class="feature-card__tag">Nguồn dữ liệu</span>
-            <h2>Google Sheets là nguồn dữ liệu duy nhất</h2>
-            <p>Admins lưu tài khoản, Students lưu học viên. Apps Script chịu trách nhiệm trả dữ liệu.</p>
+          <article class="auth-capability-card">
+            <span class="auth-capability-card__index">02</span>
+            <h2>Hoc phi</h2>
+            <p>Theo doi tong hoc phi, da dong va cong no theo tung hoc vien.</p>
           </article>
 
-          <article class="feature-card feature-card--accent">
-            <span class="feature-card__tag">Luồng chuẩn</span>
-            <h2>Login xong đi thẳng vào `/dashboard/`</h2>
-            <p>Token được lưu trong trình duyệt và được kiểm tra lại trước khi render dashboard.</p>
+          <article class="auth-capability-card">
+            <span class="auth-capability-card__index">03</span>
+            <h2>Tien do</h2>
+            <p>Xem DAT, xu huong dang ky moi va nhom hoc vien dang cho thi.</p>
           </article>
         </div>
       </section>
 
       <section class="auth-panel" id="admin-login">
         <div class="auth-card">
-          <p class="eyebrow">Đăng nhập quản trị</p>
-          <h2>Quản lý trung tâm</h2>
+          <p class="eyebrow">Dang nhap quan ly</p>
+          <h2>Quan ly day lai</h2>
           <p class="auth-card__copy">
-            Dùng tài khoản trong sheet <strong>Admins</strong> để vào hệ thống.
+            Su dung tai khoan duoc cap cho bo phan van hanh de truy cap he thong.
           </p>
 
           <form id="login-form" class="auth-form" novalidate>
             <label class="field">
-              <span>Tài khoản</span>
+              <span>Tai khoan</span>
               <input
                 id="username"
                 name="username"
                 type="text"
                 autocomplete="username"
-                placeholder="admin1"
+                placeholder="Nhap tai khoan"
                 required
               />
             </label>
 
             <label class="field">
-              <span>Mật khẩu</span>
+              <span>Mat khau</span>
               <input
                 id="password"
                 name="password"
                 type="password"
                 autocomplete="current-password"
-                placeholder="123456"
+                placeholder="Nhap mat khau"
                 required
               />
             </label>
 
             <button id="login-button" class="button button-primary button-block" type="submit">
-              Vào dashboard
+              Dang nhap
             </button>
 
             <p id="form-feedback" class="feedback" aria-live="polite"></p>
           </form>
 
           <div class="auth-card__footer">
-            <p>API URL cấu hình tại <code>assets/js/app-config.js</code>.</p>
+            <p>Neu can ho tro, vui long lien he quan tri vien he thong noi bo.</p>
           </div>
         </div>
       </section>
