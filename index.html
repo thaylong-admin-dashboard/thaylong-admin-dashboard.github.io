@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ThayLong Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/assets/css/base.css" />
+    <link rel="stylesheet" href="/assets/css/auth.css" />
+  </head>
+  <body class="auth-body">
+    <header class="site-header">
+      <a class="brand-mark" href="/">
+        <span class="brand-mark__badge">TL</span>
+        <span>
+          <strong>ThayLong</strong>
+          <small>Admin Dashboard</small>
+        </span>
+      </a>
+      <a class="button button-ghost" href="#admin-login">Đăng nhập admin</a>
+    </header>
+
+    <main class="auth-layout">
+      <section class="public-panel">
+        <div class="public-panel__copy">
+          <p class="eyebrow">GitHub Pages + Google Sheets + Apps Script</p>
+          <h1>Trang quản trị gọn, rõ và chạy hoàn toàn bằng static hosting.</h1>
+          <p class="lead">
+            Mẫu này dành cho trung tâm dạy lái: đăng nhập admin, xem KPI học viên, tra
+            danh sách và report theo năm mà không cần server runtime riêng.
+          </p>
+        </div>
+
+        <div class="feature-stack">
+          <article class="feature-card">
+            <span class="feature-card__tag">Shell admin</span>
+            <h2>Sidebar cố định và topbar hành động rõ ràng</h2>
+            <p>Thiết kế theo kiểu business dashboard, ưu tiên dễ đọc và dễ mở rộng.</p>
+          </article>
+
+          <article class="feature-card">
+            <span class="feature-card__tag">Nguồn dữ liệu</span>
+            <h2>Google Sheets là nguồn dữ liệu duy nhất</h2>
+            <p>Admins lưu tài khoản, Students lưu học viên. Apps Script chịu trách nhiệm trả dữ liệu.</p>
+          </article>
+
+          <article class="feature-card feature-card--accent">
+            <span class="feature-card__tag">Luồng chuẩn</span>
+            <h2>Login xong đi thẳng vào `/dashboard/`</h2>
+            <p>Token được lưu trong trình duyệt và được kiểm tra lại trước khi render dashboard.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="auth-panel" id="admin-login">
+        <div class="auth-card">
+          <p class="eyebrow">Đăng nhập quản trị</p>
+          <h2>Quản lý trung tâm</h2>
+          <p class="auth-card__copy">
+            Dùng tài khoản trong sheet <strong>Admins</strong> để vào hệ thống.
+          </p>
+
+          <form id="login-form" class="auth-form" novalidate>
+            <label class="field">
+              <span>Tài khoản</span>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autocomplete="username"
+                placeholder="admin1"
+                required
+              />
+            </label>
+
+            <label class="field">
+              <span>Mật khẩu</span>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="123456"
+                required
+              />
+            </label>
+
+            <button id="login-button" class="button button-primary button-block" type="submit">
+              Vào dashboard
+            </button>
+
+            <p id="form-feedback" class="feedback" aria-live="polite"></p>
+          </form>
+
+          <div class="auth-card__footer">
+            <p>API URL cấu hình tại <code>assets/js/app-config.js</code>.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/assets/js/pages/login.js"></script>
+  </body>
+</html>

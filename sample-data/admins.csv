@@ -1,0 +1,6 @@
+admin_id,username,password,full_name,role,is_active
+ADM-001,admin1,123456,Nguyen Van An,Quan tri vien,TRUE
+ADM-002,admin2,123456,Tran Thi Binh,Van hanh,TRUE
+ADM-003,admin3,123456,Le Minh Chau,Ke toan,TRUE
+ADM-004,admin4,123456,Pham Quoc Dat,Tuyen sinh,TRUE
+ADM-005,admin5,123456,Hoang Gia Linh,Quan ly trung tam,TRUE
