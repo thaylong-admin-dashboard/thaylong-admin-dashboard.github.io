@@ -10,18 +10,27 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function getLearningTone(value) {
-  const normalized = String(value || "").toLowerCase();
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("đ", "d")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
-  if (normalized.includes("đang học")) {
+function getLearningTone(value) {
+  const normalized = normalizeText(value);
+
+  if (normalized.includes("dang hoc")) {
     return "info";
   }
 
-  if (normalized.includes("chờ thi")) {
+  if (normalized.includes("cho thi")) {
     return "warning";
   }
 
-  if (normalized.includes("hoàn thành")) {
+  if (normalized.includes("hoan thanh")) {
     return "success";
   }
 
@@ -29,7 +38,7 @@ function getLearningTone(value) {
 }
 
 function getFeeTone(value) {
-  return String(value || "").toLowerCase().includes("nợ") ? "danger" : "success";
+  return normalizeText(value).includes("no") ? "danger" : "success";
 }
 
 function renderStatusBadge(label, tone) {

@@ -45,7 +45,7 @@ function doPost(e) {
 }
 
 function handleLogin_(params) {
-  var username = String(params.username || "").trim();
+  var username = normalizeText_(params.username);
   var password = String(params.password || "").trim();
 
   if (!username || !password) {
@@ -54,8 +54,8 @@ function handleLogin_(params) {
 
   var admin = getAdmins_().find(function (item) {
     return (
-      item.username === username &&
-      item.password === password &&
+      normalizeText_(item.username) === username &&
+      String(item.password || "").trim() === password &&
       normalizeBoolean_(item.is_active, true)
     );
   });
@@ -176,18 +176,18 @@ function buildSummary_(students) {
   return students.reduce(
     function (summary, student) {
       var registerDate = parseDateValue_(student.registerDate);
-      var learningStatus = String(student.learningStatus || "").toLowerCase();
-      var feeStatus = String(student.feeStatus || "").toLowerCase();
+      var learningStatus = normalizeText_(student.learningStatus);
+      var feeStatus = normalizeText_(student.feeStatus);
 
-      if (learningStatus === "đang học") {
+      if (learningStatus === "dang hoc") {
         summary.activeLearning += 1;
       }
 
-      if (learningStatus === "chờ thi") {
+      if (learningStatus === "cho thi") {
         summary.waitingExam += 1;
       }
 
-      if (feeStatus.indexOf("nợ") > -1) {
+      if (feeStatus.indexOf("no") > -1) {
         summary.feeDebt += 1;
       }
 
@@ -366,6 +366,15 @@ function normalizeBoolean_(value, fallbackValue) {
   }
 
   return String(value).toLowerCase() === "true";
+}
+
+function normalizeText_(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function getAction_(e) {
