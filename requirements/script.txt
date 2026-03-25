@@ -1,5 +1,5 @@
-var ADMIN_SHEET_NAMES = ["Admins", "ThayLong Admin Data - Admins"];
-var STUDENT_SHEET_NAMES = ["Students", "ThayLong Admin Data - Students"];
+var ADMIN_SHEET_NAME = "Admins";
+var STUDENT_SHEET_NAME = "Students";
 var SESSION_PREFIX = "session_";
 var SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 var APP_TIMEZONE = "Asia/Bangkok";
@@ -144,7 +144,7 @@ function handleReport_(params) {
 }
 
 function getAdmins_() {
-  return getSheetObjects_(ADMIN_SHEET_NAMES).map(function (row) {
+  return getSheetObjects_(ADMIN_SHEET_NAME).map(function (row) {
     return {
       admin_id: cleanString_(row.admin_id),
       username: cleanString_(row.username),
@@ -157,52 +157,25 @@ function getAdmins_() {
 }
 
 function getStudents_() {
-  return getSheetObjects_(STUDENT_SHEET_NAMES)
+  return getSheetObjects_(STUDENT_SHEET_NAME)
     .map(function (row) {
-      var rowLookup = buildNormalizedRowLookup_(row);
-      var studentId = cleanString_(
-        getRowValue_(rowLookup, ["student_id", "hoc_vien_id", "hocvienid", "ma_hoc_vien", "ma_hv"])
-      );
-      var fullName = cleanString_(getRowValue_(rowLookup, ["full_name", "ho_ten", "hoten"]));
-      var courseName = cleanString_(getRowValue_(rowLookup, ["course_name", "khoa_hoc"]));
-      var licenseClass = cleanString_(getRowValue_(rowLookup, ["license_class", "hang_hoc"]));
-      var status = cleanString_(
-        getRowValue_(rowLookup, [
-          "learning_status",
-          "trang_thai",
-          "trang_thai_hoc",
-          "status"
-        ])
-      );
-      var feeStatus = cleanString_(
-        getRowValue_(rowLookup, ["fee_status", "trang_thai_hoc_phi", "payment_status"])
-      );
-      var note = cleanString_(getRowValue_(rowLookup, ["note", "notes", "ghi_chu"]));
-
       return {
-        studentId: studentId,
-        hocvienId: studentId,
-        fullName: fullName,
-        birthDate: formatDateForClient_(getRowValue_(rowLookup, ["birth_date", "ngay_sinh"])),
-        phone: cleanString_(getRowValue_(rowLookup, ["phone", "sdt", "so_dien_thoai"])),
-        courseName: courseName,
-        licenseClass: licenseClass,
-        sessionType: cleanString_(getRowValue_(rowLookup, ["session_type", "loai_buoi"])),
-        status: status,
-        learningStatus: status,
-        feeStatus: feeStatus,
-        datVehicle: cleanString_(getRowValue_(rowLookup, ["dat_xe", "dat_vehicle"])),
-        registerDate: formatDateForClient_(getRowValue_(rowLookup, ["register_date", "ngay_dang_ky"])),
-        datKm: parseNumber_(getRowValue_(rowLookup, ["km_dat", "dat_km"])),
-        tuitionTotal: parseCurrency_(getRowValue_(rowLookup, ["hoc_phi", "tuition_total", "total_fee"])),
-        tuitionPaid: parseCurrency_(getRowValue_(rowLookup, ["da_dong", "tuition_paid", "paid_fee"])),
-        tuitionDue: parseCurrency_(getRowValue_(rowLookup, ["con_thieu", "tuition_due", "due_fee"])),
-        notes: note,
-        note: note,
-        examResult: cleanString_(getRowValue_(rowLookup, ["ket_qua_thi", "exam_result"])),
-        completedDate: formatDateForClient_(
-          getRowValue_(rowLookup, ["ngay_hoan_thanh", "completed_date"])
-        )
+        studentId: cleanString_(row.student_id),
+        fullName: cleanString_(row.ho_ten),
+        birthDate: formatDateForClient_(row.ngay_sinh),
+        phone: cleanString_(row.sdt),
+        licenseClass: cleanString_(row.hang_hoc),
+        sessionType: cleanString_(row.loai_buoi),
+        status: cleanString_(row.trang_thai),
+        datVehicle: cleanString_(row["DAT_xe"]),
+        registerDate: formatDateForClient_(row.ngay_dang_ky),
+        datKm: parseNumber_(row["km_DAT"]),
+        tuitionTotal: parseCurrency_(row.hoc_phi),
+        tuitionPaid: parseCurrency_(row.da_dong),
+        tuitionDue: parseCurrency_(row.con_thieu),
+        notes: cleanString_(row.ghi_chu),
+        examResult: cleanString_(row.ket_qua_thi),
+        completedDate: formatDateForClient_(row.ngay_hoan_thanh)
       };
     })
     .filter(function (student) {
@@ -239,7 +212,7 @@ function buildSummary_(students) {
         summary.completedStudents += 1;
       }
 
-      if (hasOutstandingBalance_(student)) {
+      if (student.tuitionDue > 0) {
         summary.feeDebt += 1;
       }
 
@@ -391,80 +364,10 @@ function getSheetObjects_(sheetName) {
   });
 }
 
-function getSheetObjects_(sheetNames) {
-  var candidateNames = Array.isArray(sheetNames) ? sheetNames : [sheetNames];
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = null;
-
-  for (var index = 0; index < candidateNames.length; index += 1) {
-    sheet = spreadsheet.getSheetByName(candidateNames[index]);
-
-    if (sheet) {
-      break;
-    }
-  }
-
-  if (!sheet) {
-    throw new Error("Khong tim thay sheet: " + candidateNames.join(" hoac "));
-  }
-
-  var values = sheet.getDataRange().getValues();
-
-  if (values.length < 2) {
-    return [];
-  }
-
-  var headers = values[0].map(function (header) {
-    return cleanString_(header);
-  });
-
-  return values.slice(1).filter(hasRowData_).map(function (row) {
-    var item = {};
-
-    headers.forEach(function (header, index) {
-      item[header] = row[index];
-    });
-
-    return item;
-  });
-}
-
-function buildNormalizedRowLookup_(row) {
-  return Object.keys(row).reduce(function (lookup, key) {
-    lookup[normalizeHeaderKey_(key)] = row[key];
-    return lookup;
-  }, {});
-}
-
-function getRowValue_(rowLookup, candidateKeys) {
-  for (var index = 0; index < candidateKeys.length; index += 1) {
-    var candidateKey = normalizeHeaderKey_(candidateKeys[index]);
-
-    if (Object.prototype.hasOwnProperty.call(rowLookup, candidateKey)) {
-      return rowLookup[candidateKey];
-    }
-  }
-
-  return "";
-}
-
 function hasRowData_(row) {
   return row.some(function (cell) {
     return cleanString_(cell) !== "";
   });
-}
-
-function hasOutstandingBalance_(student) {
-  var feeStatus = normalizeText_(student.feeStatus);
-
-  return (
-    student.tuitionDue > 0 ||
-    feeStatus.indexOf("no hoc phi") > -1 ||
-    feeStatus.indexOf("con thieu") > -1 ||
-    feeStatus.indexOf("chua du") > -1 ||
-    feeStatus.indexOf("outstanding") > -1 ||
-    feeStatus.indexOf("debt") > -1
-  );
 }
 
 function parseDateValue_(value) {
@@ -568,44 +471,6 @@ function parseNumeric_(value) {
 
   var text = cleanString_(value)
     .replace(/₫/g, "")
-    .replace(/,/g, "")
-    .replace(/\s+/g, "");
-  var parsed = Number(text);
-
-  if (!isNaN(parsed)) {
-    return parsed;
-  }
-
-  var fallback = text.replace(/[^\d.-]/g, "");
-  return fallback ? Number(fallback) : 0;
-}
-
-function normalizeText_(value) {
-  return cleanString_(value)
-    .toLowerCase()
-    .replace(/\u0111/g, "d")
-    .replace(/\u0110/g, "d")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function normalizeHeaderKey_(value) {
-  return normalizeText_(value)
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-function parseNumeric_(value) {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
-
-  if (typeof value === "number" && !isNaN(value)) {
-    return value;
-  }
-
-  var text = cleanString_(value)
-    .replace(/\u20ab/g, "")
     .replace(/,/g, "")
     .replace(/\s+/g, "");
   var parsed = Number(text);

@@ -1,5 +1,11 @@
 import { appUrl } from "./env.js";
 import { formatCurrency, formatDate, formatNumber, getInitials } from "./format.js";
+import {
+  hasMoneyBreakdown,
+  hasOutstandingBalance,
+  normalizeStudentRecord,
+  normalizeTextValue
+} from "./student-data.js";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -10,17 +16,8 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function normalizeText(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replaceAll("đ", "d")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
 function getStatusTone(value) {
-  const normalized = normalizeText(value);
+  const normalized = normalizeTextValue(value);
 
   if (normalized.includes("hoan thanh")) {
     return "success";
@@ -37,8 +34,8 @@ function getStatusTone(value) {
   return "danger";
 }
 
-function getDebtTone(value) {
-  return Number(value || 0) > 0 ? "danger" : "success";
+function getDebtTone(hasDebt) {
+  return hasDebt ? "danger" : "success";
 }
 
 function renderStatusBadge(label, tone) {
@@ -79,17 +76,37 @@ function navItems() {
       icon: "HV",
       label: "Hoc vien",
       href: appUrl("/dashboard/students/")
+    },
+    {
+      id: "report",
+      icon: "RP",
+      label: "Report",
+      href: appUrl("/dashboard/report/")
     }
   ];
 }
 
 function renderMoneyStack(student) {
+  const hasDebt = hasOutstandingBalance(student);
+
+  if (!hasMoneyBreakdown(student)) {
+    return `
+      <div class="money-stack">
+        <strong>${escapeHtml(student.feeStatus || "--")}</strong>
+        <span>Chua co chi tiet hoc phi</span>
+        <span class="${hasDebt ? "text-danger" : "text-success"}">
+          ${hasDebt ? "Can theo doi thanh toan" : "Chua ghi nhan cong no"}
+        </span>
+      </div>
+    `;
+  }
+
   return `
     <div class="money-stack">
-      <strong>${formatCurrency(student.tuitionTotal)}</strong>
-      <span>Da dong ${formatCurrency(student.tuitionPaid)}</span>
-      <span class="${student.tuitionDue > 0 ? "text-danger" : "text-success"}">
-        Con thieu ${formatCurrency(student.tuitionDue)}
+      <strong>${formatCurrency(student.tuitionTotal ?? 0)}</strong>
+      <span>Da dong ${formatCurrency(student.tuitionPaid ?? 0)}</span>
+      <span class="${hasDebt ? "text-danger" : "text-success"}">
+        Con thieu ${formatCurrency(student.tuitionDue ?? 0)}
       </span>
     </div>
   `;
@@ -154,7 +171,7 @@ export function mountDashboardLayout({
         <header class="topbar">
           <div class="topbar__left">
             <button class="topbar__mobile-toggle" type="button" data-sidebar-toggle>
-              ☰
+              &#9776;
             </button>
 
             <div>
@@ -260,46 +277,56 @@ export function renderStatsGrid(summary = {}) {
 
 export function renderStudentTable(students = []) {
   const rows = students
-    .map(
-      (student) => `
+    .map((rawStudent) => {
+      const student = normalizeStudentRecord(rawStudent);
+      const hasDebt = hasOutstandingBalance(student);
+      const detailLine = student.birthDate
+        ? `Ngay sinh ${formatDate(student.birthDate)}`
+        : student.notes
+          ? `Ghi chu ${student.notes}`
+          : "--";
+      const programPrimary = student.licenseClass || student.courseName || "--";
+      const programSecondary =
+        student.sessionType ||
+        (student.courseName && student.courseName !== programPrimary ? student.courseName : "--");
+      const datMeta = student.datKm === null ? "--" : `${formatNumber(student.datKm)} km DAT`;
+      const paymentLabel = student.feeStatus || (hasDebt ? "Con thieu" : "Da du");
+      const registerMeta = student.examResult || student.notes || "--";
+
+      return `
         <tr>
           <td>${escapeHtml(student.studentId)}</td>
           <td>
             <div class="student-meta">
               <strong class="student-name">${escapeHtml(student.fullName || "--")}</strong>
               <span class="student-subtext">${escapeHtml(student.phone || "--")}</span>
-              <span class="student-subtext">Ngay sinh ${escapeHtml(
-                formatDate(student.birthDate)
-              )}</span>
+              <span class="student-subtext">${escapeHtml(detailLine)}</span>
             </div>
           </td>
           <td>
             <div class="student-meta">
-              <strong>${escapeHtml(student.licenseClass || "--")}</strong>
-              <span class="student-subtext">${escapeHtml(student.sessionType || "--")}</span>
+              <strong>${escapeHtml(programPrimary)}</strong>
+              <span class="student-subtext">${escapeHtml(programSecondary)}</span>
             </div>
           </td>
           <td>${renderStatusBadge(student.status, getStatusTone(student.status))}</td>
           <td>
             <div class="student-meta">
               <strong>${escapeHtml(student.datVehicle || "--")}</strong>
-              <span class="student-subtext">${formatNumber(student.datKm)} km DAT</span>
+              <span class="student-subtext">${escapeHtml(datMeta)}</span>
             </div>
           </td>
           <td>${renderMoneyStack(student)}</td>
-          <td>${renderStatusBadge(
-            Number(student.tuitionDue) > 0 ? "Con thieu" : "Da du",
-            getDebtTone(student.tuitionDue)
-          )}</td>
+          <td>${renderStatusBadge(paymentLabel, getDebtTone(hasDebt))}</td>
           <td>
             <div class="student-meta">
               <strong>${formatDate(student.registerDate)}</strong>
-              <span class="student-subtext">${escapeHtml(student.examResult || "--")}</span>
+              <span class="student-subtext">${escapeHtml(registerMeta)}</span>
             </div>
           </td>
         </tr>
-      `
-    )
+      `;
+    })
     .join("");
 
   if (!rows) {
@@ -320,7 +347,7 @@ export function renderStudentTable(students = []) {
           <tr>
             <th>Ma HV</th>
             <th>Hoc vien</th>
-            <th>Hang hoc / Buoi</th>
+            <th>Hang hoc / Chi tiet</th>
             <th>Trang thai</th>
             <th>Xe DAT / Km</th>
             <th>Hoc phi</th>

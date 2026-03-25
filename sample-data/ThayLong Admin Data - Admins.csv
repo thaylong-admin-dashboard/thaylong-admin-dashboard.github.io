@@ -1,6 +1,0 @@
-admin_id,username,password,full_name,is_active
-ADM-001,admin1,123456,Nguyen Van An,TRUE
-ADM-002,admin2,123456,Tran Thi Binh,TRUE
-ADM-003,admin3,123456,Le Minh Chau,TRUE
-ADM-004,admin4,123456,Pham Quoc Dat,TRUE
-ADM-005,admin5,123456,Hoang Gia Linh,TRUE

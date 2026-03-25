@@ -6,7 +6,6 @@ import {
   mountDashboardLayout,
   renderErrorState,
   renderStatsGrid,
-  renderStudentTable,
   updateAdminPanel
 } from "../modules/layout.js";
 import {
@@ -18,18 +17,18 @@ import {
 import { getStoredSession } from "../modules/storage.js";
 
 const layout = mountDashboardLayout({
-  activeNav: "overview",
-  pageTitle: "Dashboard",
-  pageSubtitle: "Tong hop hoc vien, hoc phi va xu huong dang ky theo nam.",
+  activeNav: "report",
+  pageTitle: "Report",
+  pageSubtitle: "Theo doi xu huong dang ky moi va tong hop chi so theo nam.",
   actions: [
     {
-      label: "Xem danh sach hoc vien",
-      href: appUrl("/dashboard/students/"),
+      label: "Ve dashboard",
+      href: appUrl("/dashboard/"),
       variant: "secondary"
     },
     {
-      label: "Xem report",
-      href: appUrl("/dashboard/report/"),
+      label: "Xem hoc vien",
+      href: appUrl("/dashboard/students/"),
       variant: "primary"
     }
   ],
@@ -39,7 +38,6 @@ const layout = mountDashboardLayout({
 
 let activeToken = "";
 let activeChart = null;
-let cachedStats = null;
 
 function destroyActiveChart() {
   if (activeChart) {
@@ -48,8 +46,9 @@ function destroyActiveChart() {
   }
 }
 
-function renderDashboard(reportData, statsData) {
+function renderReportPage(reportData) {
   const summary = reportData.summary || {};
+  const totalRegistrations = reportData.monthlyRegistrations.reduce((sum, value) => sum + value, 0);
 
   return `
     ${renderStatsGrid(summary)}
@@ -61,72 +60,53 @@ function renderDashboard(reportData, statsData) {
       <article class="section-card">
         <div class="section-heading">
           <div>
-            <span class="section-eyebrow">Tong quan nhanh</span>
-            <h2>Cap nhat van hanh</h2>
+            <span class="section-eyebrow">Tong hop nam</span>
+            <h2>Chi so report</h2>
             <p class="section-text">
-              Cap nhat luc ${formatDateTime(statsData.generatedAt)}. Tong km DAT dang ghi nhan:
-              ${formatNumber(summary.totalDatKm || 0)} km.
+              Cap nhat luc ${formatDateTime(reportData.generatedAt)} cho nam ${reportData.selectedYear}.
             </p>
           </div>
         </div>
 
         <div class="insight-list">
           <article class="insight-item">
+            <span class="insight-item__label">Dang ky moi</span>
+            <strong>${formatNumber(totalRegistrations)} hoc vien</strong>
+            <p>Tong so hoc vien dang ky moi trong nam duoc chon.</p>
+          </article>
+
+          <article class="insight-item">
             <span class="insight-item__label">Hoan thanh</span>
-            <strong>${summary.completedStudents || 0} hoc vien</strong>
-            <p>Da hoan tat chuong trinh hoac co ngay hoan thanh.</p>
+            <strong>${formatNumber(summary.completedStudents || 0)} hoc vien</strong>
+            <p>Hoc vien da hoan tat chuong trinh hoac co ngay hoan thanh.</p>
           </article>
 
           <article class="insight-item">
             <span class="insight-item__label">Cong no</span>
             <strong>${formatCurrency(summary.totalOutstandingAmount || 0)}</strong>
-            <p>Tong gia tri hoc phi con thieu can theo doi.</p>
+            <p>Tong gia tri hoc phi con thieu hien co.</p>
           </article>
 
           <article class="insight-item">
-            <span class="insight-item__label">Da thu</span>
-            <strong>${formatCurrency(summary.totalCollectedAmount || 0)}</strong>
-            <p>Tien hoc phi da thu tren tong du lieu hien tai.</p>
+            <span class="insight-item__label">DAT</span>
+            <strong>${formatNumber(summary.totalDatKm || 0)} km</strong>
+            <p>Tong so km DAT ghi nhan tren toan bo hoc vien.</p>
           </article>
         </div>
       </article>
     </section>
-
-    <section class="section-card section-card--table">
-      <div class="section-heading">
-        <div>
-          <span class="section-eyebrow">Moi nhat</span>
-          <h2>Hoc vien dang ky gan day</h2>
-          <p class="section-text">Danh sach duoc sap xep theo ngay dang ky moi nhat.</p>
-        </div>
-      </div>
-
-      ${renderStudentTable(statsData.recentStudents || [])}
-    </section>
   `;
 }
 
-function mountChart(monthlyRegistrations) {
-  destroyActiveChart();
-  activeChart = mountRegistrationChart(
-    layout.content.querySelector("#registration-chart"),
-    monthlyRegistrations
-  );
-}
-
-async function renderYear(year) {
-  const reportData = normalizeReportData(await api.getReport(activeToken, year), year);
-
-  layout.content.innerHTML = renderDashboard(reportData, cachedStats || {});
-  mountChart(reportData.monthlyRegistrations);
-
+function bindYearSelect() {
   const yearSelect = layout.content.querySelector("[data-report-year]");
+
   yearSelect?.addEventListener("change", async (event) => {
     layout.content.innerHTML = `
       <section class="section-card">
         <div class="empty-state">
           <div>
-            <h3>Dang cap nhat dashboard</h3>
+            <h3>Dang cap nhat report</h3>
             <p>He thong dang tai du lieu cho nam ${event.target.value}.</p>
           </div>
         </div>
@@ -142,6 +122,18 @@ async function renderYear(year) {
   });
 }
 
+async function renderYear(year) {
+  const reportData = normalizeReportData(await api.getReport(activeToken, year), year);
+
+  layout.content.innerHTML = renderReportPage(reportData);
+  destroyActiveChart();
+  activeChart = mountRegistrationChart(
+    layout.content.querySelector("#registration-chart"),
+    reportData.monthlyRegistrations
+  );
+  bindYearSelect();
+}
+
 async function init() {
   try {
     const session = await requireAuth();
@@ -152,8 +144,6 @@ async function init() {
 
     activeToken = session.token;
     updateAdminPanel(layout, session);
-
-    cachedStats = await api.getStats(session.token);
     await renderYear(new Date().getFullYear());
   } catch (error) {
     destroyActiveChart();

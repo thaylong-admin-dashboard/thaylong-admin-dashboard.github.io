@@ -1,0 +1,80 @@
+{
+    "success": true,
+    "data": {
+        "summary": {
+            "activeLearning": 0,
+            "waitingExam": 0,
+            "feeDebt": 0,
+            "newThisMonth": 0
+        },
+        "recentStudents": [
+            {
+                "studentId": "HV-001",
+                "fullName": "",
+                "courseName": "",
+                "licenseClass": "",
+                "learningStatus": "",
+                "feeStatus": "",
+                "registerDate": "",
+                "phone": "",
+                "note": ""
+            },
+            {
+                "studentId": "HV-002",
+                "fullName": "",
+                "courseName": "",
+                "licenseClass": "",
+                "learningStatus": "",
+                "feeStatus": "",
+                "registerDate": "",
+                "phone": "",
+                "note": ""
+            },
+            {
+                "studentId": "HV-003",
+                "fullName": "",
+                "courseName": "",
+                "licenseClass": "",
+                "learningStatus": "",
+                "feeStatus": "",
+                "registerDate": "",
+                "phone": "",
+                "note": ""
+            },
+            {
+                "studentId": "HV-004",
+                "fullName": "",
+                "courseName": "",
+                "licenseClass": "",
+                "learningStatus": "",
+                "feeStatus": "",
+                "registerDate": "",
+                "phone": "",
+                "note": ""
+            },
+            {
+                "studentId": "HV-005",
+                "fullName": "",
+                "courseName": "",
+                "licenseClass": "",
+                "learningStatus": "",
+                "feeStatus": "",
+                "registerDate": "",
+                "phone": "",
+                "note": ""
+            },
+            {
+                "studentId": "HV-006",
+                "fullName": "",
+                "courseName": "",
+                "licenseClass": "",
+                "learningStatus": "",
+                "feeStatus": "",
+                "registerDate": "",
+                "phone": "",
+                "note": ""
+            }
+        ],
+        "generatedAt": "2026-03-25T14:09:05.258Z"
+    }
+}

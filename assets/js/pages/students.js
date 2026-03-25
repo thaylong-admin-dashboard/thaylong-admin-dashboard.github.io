@@ -10,6 +10,11 @@ import {
   updateAdminPanel
 } from "../modules/layout.js";
 import { getStoredSession } from "../modules/storage.js";
+import {
+  hasOutstandingBalance,
+  normalizeStudentCollection,
+  normalizeTextValue
+} from "../modules/student-data.js";
 
 const layout = mountDashboardLayout({
   activeNav: "students",
@@ -20,6 +25,11 @@ const layout = mountDashboardLayout({
       label: "Ve dashboard",
       href: appUrl("/dashboard/"),
       variant: "secondary"
+    },
+    {
+      label: "Xem report",
+      href: appUrl("/dashboard/report/"),
+      variant: "primary"
     }
   ],
   admin: getStoredSession() || {},
@@ -27,12 +37,7 @@ const layout = mountDashboardLayout({
 });
 
 function normalizeText(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replaceAll("đ", "d")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+  return normalizeTextValue(value);
 }
 
 function getUniqueOptions(students, field) {
@@ -70,9 +75,7 @@ function renderStudentsView(data, students) {
 
         <select data-status-filter>
           <option value="">Tat ca trang thai</option>
-          ${statusOptions
-            .map((status) => `<option value="${status}">${status}</option>`)
-            .join("")}
+          ${statusOptions.map((status) => `<option value="${status}">${status}</option>`).join("")}
         </select>
 
         <select data-license-filter>
@@ -111,9 +114,11 @@ function filterStudents(students, filters) {
       [
         student.studentId,
         student.fullName,
+        student.courseName,
         student.phone,
         student.notes,
-        student.datVehicle
+        student.datVehicle,
+        student.feeStatus
       ]
         .map(normalizeText)
         .join(" ")
@@ -122,8 +127,7 @@ function filterStudents(students, filters) {
     const statusMatches = !status || normalizeText(student.status) === status;
     const licenseMatches = !licenseClass || normalizeText(student.licenseClass) === licenseClass;
     const debtMatches =
-      !debt ||
-      (debt === "debt" ? Number(student.tuitionDue || 0) > 0 : Number(student.tuitionDue || 0) <= 0);
+      !debt || (debt === "debt" ? hasOutstandingBalance(student) : !hasOutstandingBalance(student));
 
     return keywordMatches && statusMatches && licenseMatches && debtMatches;
   });
@@ -166,8 +170,10 @@ async function init() {
     updateAdminPanel(layout, session);
 
     const data = await api.getStudents(session.token);
-    layout.content.innerHTML = renderStudentsView(data, data.students);
-    bindFilters(data.students);
+    const students = normalizeStudentCollection(data.students);
+
+    layout.content.innerHTML = renderStudentsView(data, students);
+    bindFilters(students);
   } catch (error) {
     layout.content.innerHTML = renderErrorState(error.message);
   }
