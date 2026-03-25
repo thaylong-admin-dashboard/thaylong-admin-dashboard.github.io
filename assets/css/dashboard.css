@@ -6,6 +6,7 @@
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 0.24s ease;
 }
 
 .sidebar {
@@ -20,6 +21,7 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 18%),
     var(--navy-900);
   color: #fff;
+  transition: transform 0.24s ease, opacity 0.18s ease;
 }
 
 .sidebar__brand {
@@ -154,7 +156,7 @@
 }
 
 .topbar__mobile-toggle {
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 44px;
@@ -370,8 +372,15 @@
 
 .data-table {
   width: 100%;
-  min-width: 1140px;
   border-collapse: collapse;
+}
+
+.data-table--students {
+  min-width: 1140px;
+}
+
+.data-table--compact {
+  min-width: 760px;
 }
 
 .data-table thead th {
@@ -496,6 +505,18 @@
   display: none;
 }
 
+@media (min-width: 941px) {
+  body.sidebar-collapsed .dashboard-shell {
+    grid-template-columns: 0 minmax(0, 1fr);
+  }
+
+  body.sidebar-collapsed .sidebar {
+    transform: translateX(-100%);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 @media (max-width: 1280px) {
   .stats-grid,
   .finance-grid {
@@ -537,9 +558,6 @@
     display: block;
   }
 
-  .topbar__mobile-toggle {
-    display: inline-flex;
-  }
 }
 
 @media (max-width: 760px) {

@@ -15,6 +15,13 @@ import {
   normalizeTextValue
 } from "../modules/student-data.js";
 
+const STUDENT_TABLE_OPTIONS = {
+  showStudentId: false,
+  showTuition: false,
+  showPayment: false,
+  showRegister: false
+};
+
 const layout = mountDashboardLayout({
   activeNav: "students",
   pageTitle: "Danh sach hoc vien",
@@ -85,7 +92,7 @@ function renderStudentsView(data, students) {
         <span>Du lieu lay tu sheet Students</span>
       </div>
 
-      <div data-table-region>${renderStudentTable(students)}</div>
+      <div data-table-region>${renderStudentTable(students, STUDENT_TABLE_OPTIONS)}</div>
     </section>
   `;
 }
@@ -138,7 +145,7 @@ function bindFilters(students) {
     });
 
     resultCount.textContent = `${filteredStudents.length} hoc vien`;
-    tableRegion.innerHTML = renderStudentTable(filteredStudents);
+    tableRegion.innerHTML = renderStudentTable(filteredStudents, STUDENT_TABLE_OPTIONS);
   }
 
   searchInput?.addEventListener("input", applyFilters);

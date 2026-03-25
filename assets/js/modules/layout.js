@@ -164,7 +164,13 @@ export function mountDashboardLayout({
       <div class="dashboard-main">
         <header class="topbar">
           <div class="topbar__left">
-            <button class="topbar__mobile-toggle" type="button" data-sidebar-toggle>
+            <button
+              class="topbar__mobile-toggle"
+              type="button"
+              data-sidebar-toggle
+              title="An hoac hien sidebar"
+              aria-label="An hoac hien sidebar"
+            >
               &#9776;
             </button>
 
@@ -198,7 +204,12 @@ export function mountDashboardLayout({
   const logoutButton = app.querySelector("[data-logout]");
 
   toggleButton?.addEventListener("click", () => {
-    document.body.classList.toggle("sidebar-open");
+    if (window.matchMedia("(max-width: 940px)").matches) {
+      document.body.classList.toggle("sidebar-open");
+      return;
+    }
+
+    document.body.classList.toggle("sidebar-collapsed");
   });
 
   overlay?.addEventListener("click", () => {
@@ -269,7 +280,16 @@ export function renderStatsGrid(summary = {}) {
   `;
 }
 
-export function renderStudentTable(students = []) {
+export function renderStudentTable(students = [], options = {}) {
+  const columns = {
+    showStudentId: options.showStudentId !== false,
+    showTuition: options.showTuition !== false,
+    showPayment: options.showPayment !== false,
+    showRegister: options.showRegister !== false
+  };
+  const tableClassName = `data-table data-table--students${
+    Object.values(columns).some((isVisible) => !isVisible) ? " data-table--compact" : ""
+  }`;
   const rows = students
     .map((rawStudent) => {
       const student = normalizeStudentRecord(rawStudent);
@@ -286,38 +306,64 @@ export function renderStudentTable(students = []) {
       const datMeta = student.datKm === null ? "--" : `${formatNumber(student.datKm)} km DAT`;
       const paymentLabel = student.feeStatus || (hasDebt ? "Con thieu" : "Da du");
       const registerMeta = student.examResult || student.notes || "--";
+      const cells = [];
 
-      return `
-        <tr>
-          <td>${escapeHtml(student.studentId)}</td>
-          <td>
-            <div class="student-meta">
-              <strong class="student-name">${escapeHtml(student.fullName || "--")}</strong>
-              <span class="student-subtext">${escapeHtml(student.phone || "--")}</span>
-              <span class="student-subtext">${escapeHtml(detailLine)}</span>
-            </div>
-          </td>
-          <td>
-            <div class="student-meta">
-              <strong>${escapeHtml(programPrimary)}</strong>
-              <span class="student-subtext">${escapeHtml(programSecondary)}</span>
-            </div>
-          </td>
-          <td>${renderStatusBadge(student.status, getStatusTone(student.status))}</td>
-          <td>
-            <div class="student-meta">
-              <strong>${escapeHtml(student.datVehicle || "--")}</strong>
-              <span class="student-subtext">${escapeHtml(datMeta)}</span>
-            </div>
-          </td>
-          <td>${renderMoneyStack(student)}</td>
-          <td>${renderStatusBadge(paymentLabel, getDebtTone(hasDebt))}</td>
+      if (columns.showStudentId) {
+        cells.push(`<td>${escapeHtml(student.studentId)}</td>`);
+      }
+
+      cells.push(`
+        <td>
+          <div class="student-meta">
+            <strong class="student-name">${escapeHtml(student.fullName || "--")}</strong>
+            <span class="student-subtext">${escapeHtml(student.phone || "--")}</span>
+            <span class="student-subtext">${escapeHtml(detailLine)}</span>
+          </div>
+        </td>
+      `);
+
+      cells.push(`
+        <td>
+          <div class="student-meta">
+            <strong>${escapeHtml(programPrimary)}</strong>
+            <span class="student-subtext">${escapeHtml(programSecondary)}</span>
+          </div>
+        </td>
+      `);
+
+      cells.push(`<td>${renderStatusBadge(student.status, getStatusTone(student.status))}</td>`);
+
+      cells.push(`
+        <td>
+          <div class="student-meta">
+            <strong>${escapeHtml(student.datVehicle || "--")}</strong>
+            <span class="student-subtext">${escapeHtml(datMeta)}</span>
+          </div>
+        </td>
+      `);
+
+      if (columns.showTuition) {
+        cells.push(`<td>${renderMoneyStack(student)}</td>`);
+      }
+
+      if (columns.showPayment) {
+        cells.push(`<td>${renderStatusBadge(paymentLabel, getDebtTone(hasDebt))}</td>`);
+      }
+
+      if (columns.showRegister) {
+        cells.push(`
           <td>
             <div class="student-meta">
               <strong>${formatDate(student.registerDate)}</strong>
               <span class="student-subtext">${escapeHtml(registerMeta)}</span>
             </div>
           </td>
+        `);
+      }
+
+      return `
+        <tr>
+          ${cells.join("")}
         </tr>
       `;
     })
@@ -336,17 +382,17 @@ export function renderStudentTable(students = []) {
 
   return `
     <div class="table-wrap">
-      <table class="data-table data-table--students">
+      <table class="${tableClassName}">
         <thead>
           <tr>
-            <th>Ma HV</th>
+            ${columns.showStudentId ? "<th>Ma HV</th>" : ""}
             <th>Hoc vien</th>
             <th>Hang hoc / Chi tiet</th>
             <th>Trang thai</th>
             <th>Xe DAT / Km</th>
-            <th>Hoc phi</th>
-            <th>Thanh toan</th>
-            <th>Dang ky / Ket qua</th>
+            ${columns.showTuition ? "<th>Hoc phi</th>" : ""}
+            ${columns.showPayment ? "<th>Thanh toan</th>" : ""}
+            ${columns.showRegister ? "<th>Dang ky / Ket qua</th>" : ""}
           </tr>
         </thead>
         <tbody>
