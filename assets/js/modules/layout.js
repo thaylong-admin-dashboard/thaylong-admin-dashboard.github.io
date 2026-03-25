@@ -76,12 +76,6 @@ function navItems() {
       icon: "HV",
       label: "Hoc vien",
       href: appUrl("/dashboard/students/")
-    },
-    {
-      id: "report",
-      icon: "RP",
-      label: "Report",
-      href: appUrl("/dashboard/report/")
     }
   ];
 }

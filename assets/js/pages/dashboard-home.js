@@ -1,7 +1,7 @@
 import { api } from "../modules/api.js";
 import { requireAuth, logout } from "../modules/auth.js";
 import { appUrl } from "../modules/env.js";
-import { formatCurrency, formatNumber } from "../modules/format.js";
+import { formatNumber } from "../modules/format.js";
 import {
   mountDashboardLayout,
   renderErrorState,
@@ -81,11 +81,6 @@ function renderDashboardFinance(summary = {}) {
       label: "Hoc vien moi thang nay",
       value: formatNumber(summary.newThisMonth || 0),
       description: "Ho so dang ky moi trong thang hien tai"
-    },
-    {
-      label: "Da thu",
-      value: formatCurrency(summary.totalCollectedAmount || 0),
-      description: "Tong hoc phi da thu tu hoc vien"
     }
   ];
 
