@@ -1,6 +1,5 @@
 import { api } from "../modules/api.js";
 import { requireAuth, logout } from "../modules/auth.js";
-import { appUrl } from "../modules/env.js";
 import { formatDateTime } from "../modules/format.js";
 import {
   mountDashboardLayout,
@@ -20,18 +19,7 @@ const layout = mountDashboardLayout({
   activeNav: "students",
   pageTitle: "Danh sach hoc vien",
   pageSubtitle: "Tra cuu thong tin hoc vien, hoc phi, DAT va ket qua dao tao.",
-  actions: [
-    {
-      label: "Ve dashboard",
-      href: appUrl("/dashboard/"),
-      variant: "secondary"
-    },
-    {
-      label: "Xem report",
-      href: appUrl("/dashboard/report/"),
-      variant: "primary"
-    }
-  ],
+  actions: [],
   admin: getStoredSession() || {},
   onLogout: logout
 });

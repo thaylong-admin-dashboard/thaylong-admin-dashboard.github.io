@@ -131,7 +131,7 @@ export function mountDashboardLayout({
           <span class="sidebar__brand-badge">TL</span>
           <span>
             <strong>ThayLong</strong>
-            <small>Quan ly trung tam day lai</small>
+            <small>Quản lý trung tâm dạy lái</small>
           </span>
         </a>
 
@@ -162,7 +162,7 @@ export function mountDashboardLayout({
           </div>
 
           <button class="button button-secondary button-block button-small" type="button" data-logout>
-            Dang xuat
+            Đăng xuất
           </button>
         </section>
       </aside>
@@ -237,24 +237,24 @@ export function updateAdminPanel(layoutRefs, admin) {
 export function renderStatsGrid(summary = {}) {
   const items = [
     {
-      label: "Tong hoc vien",
+      label: "Tổng học viên",
       value: summary.totalStudents,
       hint: "Tong so ho so dang duoc quan ly"
     },
     {
-      label: "Dang hoc",
+      label: "Đang học",
       value: summary.activeLearning,
-      hint: "Hoc vien dang theo tien do dao tao"
+      hint: "Học viên đang theo tiếm độ đào tạo"
     },
     {
-      label: "Cho thi",
+      label: "Chờ thi",
       value: summary.waitingExam,
-      hint: "Hoc vien da san sang thi sat hach"
+      hint: "Học viên đã sẵn sàng chờ thi sát hạch"
     },
     {
-      label: "Con hoc phi",
+      label: "Còn nợ học phí",
       value: summary.feeDebt,
-      hint: "So hoc vien con cong no hoc phi"
+      hint: "Số học viên còn nợ học phí"
     }
   ];
 

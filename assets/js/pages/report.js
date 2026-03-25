@@ -22,11 +22,6 @@ const layout = mountDashboardLayout({
   pageSubtitle: "Theo doi xu huong dang ky moi va tong hop chi so theo nam.",
   actions: [
     {
-      label: "Ve dashboard",
-      href: appUrl("/dashboard/"),
-      variant: "secondary"
-    },
-    {
       label: "Xem hoc vien",
       href: appUrl("/dashboard/students/"),
       variant: "primary"

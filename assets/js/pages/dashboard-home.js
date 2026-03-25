@@ -1,18 +1,15 @@
 import { api } from "../modules/api.js";
 import { requireAuth, logout } from "../modules/auth.js";
 import { appUrl } from "../modules/env.js";
-import { formatCurrency, formatDateTime, formatNumber } from "../modules/format.js";
+import { formatCurrency, formatNumber } from "../modules/format.js";
 import {
   mountDashboardLayout,
   renderErrorState,
-  renderStatsGrid,
-  renderStudentTable,
   updateAdminPanel
 } from "../modules/layout.js";
 import {
   mountRegistrationChart,
   normalizeReportData,
-  renderFinanceGrid,
   renderRegistrationChartSection
 } from "../modules/report-view.js";
 import { getStoredSession } from "../modules/storage.js";
@@ -20,16 +17,11 @@ import { getStoredSession } from "../modules/storage.js";
 const layout = mountDashboardLayout({
   activeNav: "overview",
   pageTitle: "Dashboard",
-  pageSubtitle: "Tong hop hoc vien, hoc phi va xu huong dang ky theo nam.",
+  pageSubtitle: "Tong hop hoc vien, hoc phi va xu huong dang ky theo nam",
   actions: [
     {
       label: "Xem danh sach hoc vien",
       href: appUrl("/dashboard/students/"),
-      variant: "secondary"
-    },
-    {
-      label: "Xem report",
-      href: appUrl("/dashboard/report/"),
       variant: "primary"
     }
   ],
@@ -39,7 +31,6 @@ const layout = mountDashboardLayout({
 
 let activeToken = "";
 let activeChart = null;
-let cachedStats = null;
 
 function destroyActiveChart() {
   if (activeChart) {
@@ -48,61 +39,80 @@ function destroyActiveChart() {
   }
 }
 
-function renderDashboard(reportData, statsData) {
+function renderDashboardStats(summary = {}) {
+  const items = [
+    {
+      label: "Dang hoc",
+      value: formatNumber(summary.activeLearning || 0),
+      hint: "Hoc vien dang theo tien do dao tao"
+    },
+    {
+      label: "Cho thi",
+      value: formatNumber(summary.waitingExam || 0),
+      hint: "Hoc vien da san sang cho ky sat hach"
+    },
+    {
+      label: "Con hoc phi",
+      value: formatNumber(summary.feeDebt || 0),
+      hint: "So hoc vien con cong no hoc phi"
+    }
+  ];
+
+  return `
+    <section class="stats-grid">
+      ${items
+        .map(
+          (item) => `
+            <article class="stat-card">
+              <span class="stat-card__label">${item.label}</span>
+              <p class="stat-card__value">${item.value}</p>
+              <p class="stat-card__hint">${item.hint}</p>
+            </article>
+          `
+        )
+        .join("")}
+    </section>
+  `;
+}
+
+function renderDashboardFinance(summary = {}) {
+  const items = [
+    {
+      label: "Hoc vien moi thang nay",
+      value: formatNumber(summary.newThisMonth || 0),
+      description: "Ho so dang ky moi trong thang hien tai"
+    },
+    {
+      label: "Da thu",
+      value: formatCurrency(summary.totalCollectedAmount || 0),
+      description: "Tong hoc phi da thu tu hoc vien"
+    }
+  ];
+
+  return `
+    <section class="finance-grid">
+      ${items
+        .map(
+          (item) => `
+            <article class="finance-card">
+              <span class="finance-card__label">${item.label}</span>
+              <strong class="finance-card__value">${item.value}</strong>
+              <p class="finance-card__copy">${item.description}</p>
+            </article>
+          `
+        )
+        .join("")}
+    </section>
+  `;
+}
+
+function renderDashboard(reportData) {
   const summary = reportData.summary || {};
 
   return `
-    ${renderStatsGrid(summary)}
-    ${renderFinanceGrid(summary)}
-
-    <section class="dashboard-grid dashboard-grid--data">
-      ${renderRegistrationChartSection(reportData)}
-
-      <article class="section-card">
-        <div class="section-heading">
-          <div>
-            <span class="section-eyebrow">Tong quan nhanh</span>
-            <h2>Cap nhat van hanh</h2>
-            <p class="section-text">
-              Cap nhat luc ${formatDateTime(statsData.generatedAt)}. Tong km DAT dang ghi nhan:
-              ${formatNumber(summary.totalDatKm || 0)} km.
-            </p>
-          </div>
-        </div>
-
-        <div class="insight-list">
-          <article class="insight-item">
-            <span class="insight-item__label">Hoan thanh</span>
-            <strong>${summary.completedStudents || 0} hoc vien</strong>
-            <p>Da hoan tat chuong trinh hoac co ngay hoan thanh.</p>
-          </article>
-
-          <article class="insight-item">
-            <span class="insight-item__label">Cong no</span>
-            <strong>${formatCurrency(summary.totalOutstandingAmount || 0)}</strong>
-            <p>Tong gia tri hoc phi con thieu can theo doi.</p>
-          </article>
-
-          <article class="insight-item">
-            <span class="insight-item__label">Da thu</span>
-            <strong>${formatCurrency(summary.totalCollectedAmount || 0)}</strong>
-            <p>Tien hoc phi da thu tren tong du lieu hien tai.</p>
-          </article>
-        </div>
-      </article>
-    </section>
-
-    <section class="section-card section-card--table">
-      <div class="section-heading">
-        <div>
-          <span class="section-eyebrow">Moi nhat</span>
-          <h2>Hoc vien dang ky gan day</h2>
-          <p class="section-text">Danh sach duoc sap xep theo ngay dang ky moi nhat.</p>
-        </div>
-      </div>
-
-      ${renderStudentTable(statsData.recentStudents || [])}
-    </section>
+    ${renderDashboardStats(summary)}
+    ${renderDashboardFinance(summary)}
+    ${renderRegistrationChartSection(reportData)}
   `;
 }
 
@@ -117,7 +127,7 @@ function mountChart(monthlyRegistrations) {
 async function renderYear(year) {
   const reportData = normalizeReportData(await api.getReport(activeToken, year), year);
 
-  layout.content.innerHTML = renderDashboard(reportData, cachedStats || {});
+  layout.content.innerHTML = renderDashboard(reportData);
   mountChart(reportData.monthlyRegistrations);
 
   const yearSelect = layout.content.querySelector("[data-report-year]");
@@ -152,8 +162,6 @@ async function init() {
 
     activeToken = session.token;
     updateAdminPanel(layout, session);
-
-    cachedStats = await api.getStats(session.token);
     await renderYear(new Date().getFullYear());
   } catch (error) {
     destroyActiveChart();
