@@ -76,6 +76,12 @@ function navItems() {
       icon: "HV",
       label: "Hoc vien",
       href: appUrl("/dashboard/students/")
+    },
+    {
+      id: "planner",
+      icon: "LT",
+      label: "Lịch tuần",
+      href: appUrl("/dashboard/planner/")
     }
   ];
 }

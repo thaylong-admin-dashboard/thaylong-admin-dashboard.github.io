@@ -1,5 +1,6 @@
 var ADMIN_SHEET_NAMES = ["Admins", "ThayLong Admin Data - Admins"];
 var STUDENT_SHEET_NAMES = ["Students", "ThayLong Admin Data - Students"];
+var PLANNER_SHEET_NAMES = ["WeeklyPlanner", "Weekly Planner", "LichTuan", "Lich Tuan"];
 var SESSION_PREFIX = "session_";
 var SESSION_TTL_MS = 1000 * 60 * 60 * 12;
 var APP_TIMEZONE = "Asia/Bangkok";
@@ -22,6 +23,10 @@ function doGet(e) {
 
     if (action === "report") {
       return jsonSuccess_(handleReport_(e.parameter));
+    }
+
+    if (action === "planner") {
+      return jsonSuccess_(handlePlanner_(e.parameter));
     }
 
     return jsonError_("Unsupported action");
@@ -49,7 +54,7 @@ function handleLogin_(params) {
   var password = cleanString_(params.password);
 
   if (!username || !password) {
-    throw new Error("Vui lòng nhập tài khoản và mật khẩu");
+    throw new Error("Vui long nhap tai khoan va mat khau");
   }
 
   var admin = getAdmins_().find(function (item) {
@@ -61,29 +66,30 @@ function handleLogin_(params) {
   });
 
   if (!admin) {
-    throw new Error("Thông tin đăng nhập không hợp lệ");
+    throw new Error("Thong tin dang nhap khong hop le");
   }
 
   purgeExpiredSessions_();
 
   var token = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
   var expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-
-  saveSession_(token, {
+  var adminPayload = {
     username: admin.username,
     fullName: admin.full_name,
-    role: admin.role || "Quản lý trung tâm",
+    role: admin.role || "Quan ly trung tam"
+  };
+
+  saveSession_(token, {
+    username: adminPayload.username,
+    fullName: adminPayload.fullName,
+    role: adminPayload.role,
     expiresAt: expiresAt
   });
 
   return {
     token: token,
     expiresAt: expiresAt,
-    admin: {
-      username: admin.username,
-      fullName: admin.full_name,
-      role: admin.role || "Quản lý trung tâm"
-    }
+    admin: adminPayload
   };
 }
 
@@ -140,6 +146,32 @@ function handleReport_(params) {
     years: availableYears,
     monthlyRegistrations: buildMonthlyRegistrationSeries_(students, selectedYear),
     generatedAt: new Date().toISOString()
+  };
+}
+
+function handlePlanner_(params) {
+  requireSession_(params.token);
+
+  var weekStartDate = resolvePlannerWeekStart_(params.weekStart);
+  var weekEndDate = addDays_(weekStartDate, 6);
+  var entries = getPlannerEntries_().filter(function (entry) {
+    var entryDate = parseDateValue_(entry.date);
+
+    if (!entryDate) {
+      return false;
+    }
+
+    return (
+      entryDate.getTime() >= weekStartDate.getTime() &&
+      entryDate.getTime() <= weekEndDate.getTime()
+    );
+  });
+
+  return {
+    weekStart: formatDateForClient_(weekStartDate),
+    weekEnd: formatDateForClient_(weekEndDate),
+    generatedAt: new Date().toISOString(),
+    days: buildPlannerDays_(weekStartDate, entries)
   };
 }
 
@@ -210,6 +242,47 @@ function getStudents_() {
     });
 }
 
+function getPlannerEntries_() {
+  return getSheetObjects_(PLANNER_SHEET_NAMES)
+    .map(function (row) {
+      var rowLookup = buildNormalizedRowLookup_(row);
+      var note = cleanString_(getRowValue_(rowLookup, ["note", "notes", "ghi_chu"]));
+
+      return {
+        id: cleanString_(getRowValue_(rowLookup, ["id", "schedule_id", "lich_id"])),
+        date: formatDateForClient_(
+          getRowValue_(rowLookup, ["date", "ngay", "ngay_hoc", "session_date"])
+        ),
+        session: normalizePlannerSession_(
+          getRowValue_(rowLookup, ["session", "buoi", "ca", "shift"])
+        ),
+        studentName: cleanString_(
+          getRowValue_(rowLookup, ["student_name", "full_name", "ho_ten", "hoc_vien", "ten_hoc_vien"])
+        ),
+        trainingType: normalizePlannerTrainingType_(
+          getRowValue_(rowLookup, ["training_type", "loai_hoc", "training", "hinh_thuc_hoc"])
+        ),
+        carType: normalizePlannerCarType_(
+          getRowValue_(rowLookup, ["car_type", "vehicle_type", "loai_xe"])
+        ),
+        licensePlate: cleanString_(
+          getRowValue_(rowLookup, ["license_plate", "bien_so", "plate_number"])
+        ),
+        teacherName: cleanString_(
+          getRowValue_(rowLookup, ["teacher_name", "instructor", "giao_vien", "phu_trach"])
+        ),
+        location: cleanString_(getRowValue_(rowLookup, ["location", "dia_diem"])),
+        note: note,
+        confirmationStatus: cleanString_(
+          getRowValue_(rowLookup, ["confirmation_status", "status", "xac_nhan", "trang_thai"])
+        )
+      };
+    })
+    .filter(function (entry) {
+      return entry.date && entry.session;
+    });
+}
+
 function buildSummary_(students) {
   var now = new Date();
   var currentMonth = now.getMonth();
@@ -222,10 +295,10 @@ function buildSummary_(students) {
       var completedDate = parseDateValue_(student.completedDate);
 
       summary.totalStudents += 1;
-      summary.totalTuitionAmount += student.tuitionTotal;
-      summary.totalCollectedAmount += student.tuitionPaid;
-      summary.totalOutstandingAmount += student.tuitionDue;
-      summary.totalDatKm += student.datKm;
+      summary.totalTuitionAmount += Number(student.tuitionTotal || 0);
+      summary.totalCollectedAmount += Number(student.tuitionPaid || 0);
+      summary.totalOutstandingAmount += Number(student.tuitionDue || 0);
+      summary.totalDatKm += Number(student.datKm || 0);
 
       if (status === "dang hoc") {
         summary.activeLearning += 1;
@@ -308,13 +381,60 @@ function getAvailableYears_(students) {
 
 function sortStudentsByRegisterDate_(students) {
   return students.slice().sort(function (left, right) {
-    return parseDateValue_(right.registerDate) - parseDateValue_(left.registerDate);
+    return getDateTimestamp_(right.registerDate) - getDateTimestamp_(left.registerDate);
   });
+}
+
+function buildPlannerDays_(weekStartDate, entries) {
+  var groupedEntries = entries.reduce(function (lookup, entry) {
+    var dateKey = formatDateForClient_(entry.date);
+    var entryKey = dateKey + "_" + entry.session;
+
+    if (!lookup[entryKey]) {
+      lookup[entryKey] = [];
+    }
+
+    lookup[entryKey].push(entry);
+    return lookup;
+  }, {});
+
+  return Array.apply(null, Array(7)).map(function (_, index) {
+    var date = addDays_(weekStartDate, index);
+    var dateKey = formatDateForClient_(date);
+    var morningEntries = (groupedEntries[dateKey + "_morning"] || []).slice();
+    var afternoonEntries = (groupedEntries[dateKey + "_afternoon"] || []).slice();
+
+    morningEntries.sort(sortPlannerEntries_);
+    afternoonEntries.sort(sortPlannerEntries_);
+
+    return {
+      date: dateKey,
+      sessions: {
+        morning: morningEntries,
+        afternoon: afternoonEntries
+      }
+    };
+  });
+}
+
+function sortPlannerEntries_(left, right) {
+  var leftName = normalizeText_(left.studentName);
+  var rightName = normalizeText_(right.studentName);
+
+  if (leftName < rightName) {
+    return -1;
+  }
+
+  if (leftName > rightName) {
+    return 1;
+  }
+
+  return 0;
 }
 
 function requireSession_(token) {
   if (!token) {
-    throw new Error("Thiếu token");
+    throw new Error("Thieu token");
   }
 
   purgeExpiredSessions_();
@@ -322,14 +442,14 @@ function requireSession_(token) {
   var rawSession = PropertiesService.getScriptProperties().getProperty(SESSION_PREFIX + token);
 
   if (!rawSession) {
-    throw new Error("Phiên đăng nhập không hợp lệ");
+    throw new Error("Phien dang nhap khong hop le");
   }
 
   var session = JSON.parse(rawSession);
 
-  if (new Date(session.expiresAt).getTime() <= Date.now()) {
+  if (!session.expiresAt || new Date(session.expiresAt).getTime() <= Date.now()) {
     PropertiesService.getScriptProperties().deleteProperty(SESSION_PREFIX + token);
-    throw new Error("Phiên đăng nhập đã hết hạn");
+    throw new Error("Phien dang nhap da het han");
   }
 
   return session;
@@ -360,34 +480,6 @@ function purgeExpiredSessions_() {
     } catch (error) {
       PropertiesService.getScriptProperties().deleteProperty(key);
     }
-  });
-}
-
-function getSheetObjects_(sheetName) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
-
-  if (!sheet) {
-    throw new Error("Không tìm thấy sheet: " + sheetName);
-  }
-
-  var values = sheet.getDataRange().getValues();
-
-  if (values.length < 2) {
-    return [];
-  }
-
-  var headers = values[0].map(function (header) {
-    return cleanString_(header);
-  });
-
-  return values.slice(1).filter(hasRowData_).map(function (row) {
-    var item = {};
-
-    headers.forEach(function (header, index) {
-      item[header] = row[index];
-    });
-
-    return item;
   });
 }
 
@@ -458,13 +550,114 @@ function hasOutstandingBalance_(student) {
   var feeStatus = normalizeText_(student.feeStatus);
 
   return (
-    student.tuitionDue > 0 ||
+    Number(student.tuitionDue || 0) > 0 ||
     feeStatus.indexOf("no hoc phi") > -1 ||
     feeStatus.indexOf("con thieu") > -1 ||
     feeStatus.indexOf("chua du") > -1 ||
     feeStatus.indexOf("outstanding") > -1 ||
     feeStatus.indexOf("debt") > -1
   );
+}
+
+function resolvePlannerWeekStart_(value) {
+  var parsedDate = parseDateValue_(value) || new Date();
+  var weekStart = new Date(parsedDate.getFullYear(), parsedDate.getMonth(), parsedDate.getDate());
+  var day = weekStart.getDay();
+  var diff = day === 0 ? -6 : 1 - day;
+
+  weekStart.setDate(weekStart.getDate() + diff);
+  weekStart.setHours(0, 0, 0, 0);
+
+  return weekStart;
+}
+
+function addDays_(date, amount) {
+  var nextDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  nextDate.setDate(nextDate.getDate() + amount);
+  nextDate.setHours(0, 0, 0, 0);
+
+  return nextDate;
+}
+
+function normalizePlannerSession_(value) {
+  var normalized = normalizeText_(value);
+
+  if (
+    normalized === "morning" ||
+    normalized === "sang" ||
+    normalized === "am" ||
+    normalized === "1"
+  ) {
+    return "morning";
+  }
+
+  if (
+    normalized === "afternoon" ||
+    normalized === "chieu" ||
+    normalized === "pm" ||
+    normalized === "2"
+  ) {
+    return "afternoon";
+  }
+
+  return "";
+}
+
+function normalizePlannerTrainingType_(value) {
+  var normalized = normalizeText_(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized === "dat") {
+    return "DAT";
+  }
+
+  if (
+    normalized.indexOf("yard") > -1 ||
+    normalized.indexOf("san tap") > -1 ||
+    normalized.indexOf("sa hinh") > -1
+  ) {
+    return "YARD_PRACTICE";
+  }
+
+  if (
+    normalized.indexOf("self") > -1 ||
+    normalized.indexOf("tu lai") > -1 ||
+    normalized.indexOf("duong truong") > -1
+  ) {
+    return "SELF_DRIVING";
+  }
+
+  return cleanString_(value).toUpperCase();
+}
+
+function normalizePlannerCarType_(value) {
+  var normalized = normalizeText_(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (
+    normalized.indexOf("manual") > -1 ||
+    normalized.indexOf("so san") > -1 ||
+    normalized.indexOf("tay") > -1
+  ) {
+    return "MANUAL";
+  }
+
+  if (
+    normalized.indexOf("automatic") > -1 ||
+    normalized.indexOf("tu dong") > -1 ||
+    normalized.indexOf("auto") > -1
+  ) {
+    return "AUTOMATIC";
+  }
+
+  return cleanString_(value).toUpperCase();
 }
 
 function parseDateValue_(value) {
@@ -514,6 +707,11 @@ function parseDateValue_(value) {
   return isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function getDateTimestamp_(value) {
+  var date = parseDateValue_(value);
+  return date ? date.getTime() : 0;
+}
+
 function formatDateForClient_(value) {
   var date = parseDateValue_(value);
 
@@ -548,41 +746,6 @@ function normalizeBoolean_(value, fallbackValue) {
 function normalizeText_(value) {
   return cleanString_(value)
     .toLowerCase()
-    .replace(/đ/g, "d")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-function cleanString_(value) {
-  return value === null || value === undefined ? "" : String(value).trim();
-}
-
-function parseNumeric_(value) {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
-
-  if (typeof value === "number" && !isNaN(value)) {
-    return value;
-  }
-
-  var text = cleanString_(value)
-    .replace(/₫/g, "")
-    .replace(/,/g, "")
-    .replace(/\s+/g, "");
-  var parsed = Number(text);
-
-  if (!isNaN(parsed)) {
-    return parsed;
-  }
-
-  var fallback = text.replace(/[^\d.-]/g, "");
-  return fallback ? Number(fallback) : 0;
-}
-
-function normalizeText_(value) {
-  return cleanString_(value)
-    .toLowerCase()
     .replace(/\u0111/g, "d")
     .replace(/\u0110/g, "d")
     .normalize("NFD")
@@ -593,6 +756,10 @@ function normalizeHeaderKey_(value) {
   return normalizeText_(value)
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
+
+function cleanString_(value) {
+  return value === null || value === undefined ? "" : String(value).trim();
 }
 
 function parseNumeric_(value) {

@@ -89,5 +89,9 @@ export const api = {
 
   async getReport(token, year) {
     return requestJson(getUrl("report", { token, year }));
+  },
+
+  async getPlanner(token, weekStart) {
+    return requestJson(getUrl("planner", { token, weekStart }));
   }
 };
